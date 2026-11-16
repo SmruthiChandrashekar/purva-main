@@ -16,8 +16,8 @@ An AI-powered enterprise solution for grievance management, built with a modern 
 The project is structured into distinct services:
 - **`frontend/`**: React application built with Vite and Bootstrap, offering a premium and responsive user experience.
 - **`backend/`**: High-performance FastAPI server handling API routes, RAG processing, and asynchronous tasks.
-- **`agents/` & `severity_model/`**: Specialized AI models and orchestration logic for classifying intent, predicting severity, and triggering escalations.
-- **`rag/`**: Retrieval-Augmented Generation pipeline handling vector storage and contextual policy retrieval.
+- **`agents/`**: Intent detection and escalation/notification logic. Intent, department and severity classification run through Groq LLM nodes in `backend/agent/`.
+- **`rag/`**: Retrieval-Augmented Generation over the policy documents in `rag/data/okf_policies/` (BM25, plus vector search via the embedding service in `deploy/hf-embed-space/` when `EMBED_URL` is set).
 
 ---
 

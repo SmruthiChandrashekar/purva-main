@@ -60,7 +60,6 @@ function Track() {
           sla_hours: data.sla_hours,
           sla_deadline: data.sla_deadline,
           initial_handler: data.initial_handler,
-          assigned_to: data.assigned_to,
           resolution_reason: data.resolution_reason,
           expected_resolution_by: data.expected_resolution_by,
           resolved_at: data.resolved_at,

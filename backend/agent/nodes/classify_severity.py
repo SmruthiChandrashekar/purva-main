@@ -10,7 +10,9 @@ Routing after classification:
 """
 
 import json
+import re
 import logging
+import time
 from backend.agent.state import GrievanceState
 
 logger = logging.getLogger(__name__)
@@ -57,12 +59,28 @@ def check_deterministic_severity_guardrails(text: str) -> tuple[str, str, str] |
     if any(k in t for k in safety_indicators):
         return ("GRIEVANCE", "HIGH", "Deterministic guardrail: Physical site safety hazard or emergency detected.")
 
-    # Bribery / fraud / corruption → always HIGH GRIEVANCE
+    # Bribery / fraud / corruption → always HIGH GRIEVANCE.
+    # Policy names ("Anti Bribery and Anti Corruption Policy", "Whistleblower Policy") are
+    # removed first: the bot's own answers quote them, and the follow-up rewriter copies
+    # them into plain questions like "is a 500 rupee gift allowed under the Anti Bribery
+    # Policy?". Questions about what is allowed also skip this rule; the LLM below still
+    # treats real bribery reports as HIGH.
+    fraud_text = re.sub(r"\banti[\s-]*(bribery|corruption|fraud)\b", " ", t)
+    fraud_text = re.sub(
+        r"\b(whistle[\s-]*blower|whistle[\s-]*blowing|bribery|corruption|fraud)\s+(policy|policies|mechanism)\b",
+        " ", fraud_text,
+    )
+    asks_about_policy = any(q in t for q in [
+        "can i", "can we", "am i allowed", "are we allowed", "is it allowed", "allowed to",
+        "is it ok", "is it okay", "is it fine", "is that allowed", "permitted",
+        "what does the policy", "what is the policy", "policy say", "policy on",
+        "how do i report", "how to report", "how can i report", "where do i report",
+    ]) or is_informational
     fraud_indicators = [
         "bribery", "bribe", "kickback", "corruption", "demanded cash",
         "whistleblower", "fraud", "embezzlement",
     ]
-    if any(k in t for k in fraud_indicators):
+    if not asks_about_policy and any(k in fraud_text for k in fraud_indicators):
         return ("GRIEVANCE", "HIGH", "Deterministic guardrail: Bribery / fraud / corruption report detected.")
 
     return None
@@ -160,46 +178,59 @@ Triage the user message. Respond ONLY with JSON: {{"reason": "...", "intent": ".
 
     num_ctx = getattr(client, "_ollama_num_ctx", None)
 
-    try:
-        kwargs = {
-            "model": model_name,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            "max_tokens": 150,
-            "temperature": 0.0,
-        }
-        if num_ctx:
-            kwargs["extra_body"] = {"options": {"num_ctx": num_ctx}}
+    # classification_failed tells callers the LOW below is a fallback, not a real triage
+    # (e.g. the AI was rate-limited), so a filed complaint is not mistaken for a low-priority one.
+    classification_failed = False
+    for attempt in range(3):
         try:
-            response = client.chat.completions.create(**kwargs, response_format={"type": "json_object"})
-        except Exception:
-            response = client.chat.completions.create(**kwargs)
+            kwargs = {
+                "model": model_name,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": 150,
+                "temperature": 0.0,
+            }
+            if num_ctx:
+                kwargs["extra_body"] = {"options": {"num_ctx": num_ctx}}
+            try:
+                response = client.chat.completions.create(**kwargs, response_format={"type": "json_object"})
+            except Exception:
+                response = client.chat.completions.create(**kwargs)
 
-        text = extract_response_text(response.choices[0].message).strip()
-        if "```" in text:
-            m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-            if m:
-                text = m.group(1)
-            else:
-                m2 = re.search(r"(\{.*?\})", text, re.DOTALL)
-                if m2:
-                    text = m2.group(1)
-        result = json.loads(text)
-        intent = result.get("intent", "QUERY").strip().upper()
-        severity = result.get("severity", "LOW").strip().upper()
-        reason = result.get("reason", "")
-    except json.JSONDecodeError as e:
-        logger.error("Failed to parse severity JSON: %s", e)
-        intent = "QUERY"
-        severity = "LOW"
-        reason = "Classification parse error — defaulting to QUERY / LOW"
-    except Exception as e:
-        logger.error("Severity classification LLM call failed: %s", e)
-        intent = "QUERY"
-        severity = "LOW"
-        reason = f"Classification error: {str(e)}"
+            text = extract_response_text(response.choices[0].message).strip()
+            if "```" in text:
+                m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+                if m:
+                    text = m.group(1)
+                else:
+                    m2 = re.search(r"(\{.*?\})", text, re.DOTALL)
+                    if m2:
+                        text = m2.group(1)
+            result = json.loads(text)
+            intent = result.get("intent", "QUERY").strip().upper()
+            severity = result.get("severity", "LOW").strip().upper()
+            reason = result.get("reason", "")
+            break
+        except json.JSONDecodeError as e:
+            logger.error("Failed to parse severity JSON: %s", e)
+            intent = "QUERY"
+            severity = "LOW"
+            reason = "Classification parse error — defaulting to QUERY / LOW"
+            classification_failed = True
+            break
+        except Exception as e:
+            if "429" in str(e) and attempt < 2:
+                logger.warning("Groq 429 rate limit hit, retrying in 5s (attempt %d)...", attempt + 1)
+                time.sleep(5)
+                continue
+            logger.error("Severity classification LLM call failed: %s", e)
+            intent = "QUERY"
+            severity = "LOW"
+            reason = f"Classification error: {str(e)}"
+            classification_failed = True
+            break
 
     # Validate intent
     if intent not in ("QUERY", "GRIEVANCE"):
@@ -232,4 +263,5 @@ Triage the user message. Respond ONLY with JSON: {{"reason": "...", "intent": ".
         "intent": intent,
         "severity": severity,
         "severity_reason": reason,
+        "classification_failed": classification_failed,
     }
