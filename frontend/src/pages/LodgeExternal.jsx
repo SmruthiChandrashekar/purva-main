@@ -33,7 +33,7 @@ function LodgeExternal() {
     contactNumber: "",
     emailAddress: "",
     cityLocation: project?.location || "",
-    incidentDate: new Date().toISOString().split("T")[0],
+    incidentDate: todayLocalISO(),
     description: location.state?.description || "",
     isAnonymous: false,
     attachments: []

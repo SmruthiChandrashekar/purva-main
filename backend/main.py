@@ -1142,6 +1142,9 @@ async def submit_complaint(request: SubmitComplaintRequest, user: dict = Depends
         description_original = request.description.strip()
         user_lang = request.lang  # e.g. "hi", "kn", "en"
         meta = request.metadata
+        # The complaint belongs to whoever is logged in. metadata.user_id comes from the browser
+        # and could name someone else, so it is ignored. Guests (no login) have no owner.
+        owner_id = (user or {}).get("user_id")
 
         # 🔹 STEP 1: Normalize description to English for ML models
         # If user wrote in Hindi/Kannada, translate first so models work correctly
@@ -1251,7 +1254,7 @@ async def submit_complaint(request: SubmitComplaintRequest, user: dict = Depends
 
         # Store clean, emoji-free description
         grievance_data = {
-            "user_id": meta.user_id if meta else None,
+            "user_id": owner_id,
             "category": category,
             "description": clean_desc_en,
             "severity": severity,
@@ -1297,7 +1300,7 @@ async def submit_complaint(request: SubmitComplaintRequest, user: dict = Depends
             )
 
         # 🔹 STEP 7: IN-APP NOTIFICATIONS
-        user_id = meta.user_id if meta else None
+        user_id = owner_id
         if user_id:
             notify_user_grievance_received(user_id, new_grievance_id)
             if route_info["assigned_tier"]:

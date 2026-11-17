@@ -339,11 +339,12 @@ def test_anonymous_complaint_keeps_owner_but_hides_identity(client, monkeypatch)
     fake.handler = lambda t, ops: [{"grievance_id": "g1"}] if t == "grievances" else []
     monkeypatch.setattr(main, "run_escalation_agent", MagicMock(), raising=False)
     c.post("/submit-complaint", json={"description": "My manager harasses me in meetings",
-                                      "metadata": {"user_id": "u-123", "is_anonymous": True, "name": "Asha",
+                                      "metadata": {"user_id": "someone-else", "is_anonymous": True, "name": "Asha",
                                                    "phone": "9999999999", "email": "asha@example.com"}})
     row = fake.ops_for("grievances", "insert")[0][1][0]
-    # Dashboard.jsx lists tickets by user_id, so the owner must be kept
-    assert row["user_id"] == "u-123" and row["is_anonymous"] is True
+    # Dashboard.jsx lists tickets by user_id, so the owner must be kept. The owner is the
+    # logged-in user ("u1"), never a user_id sent in the form.
+    assert row["user_id"] == "u1" and row["is_anonymous"] is True
     assert row["submitter_name"] is None and row["contact_phone"] is None and row["contact_email"] is None
 
 
