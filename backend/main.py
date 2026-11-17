@@ -313,6 +313,9 @@ class SubmitComplaintRequest(BaseModel):
     source: Optional[str] = None
     prefilled_severity: Optional[str] = None
     prefilled_department: Optional[str] = None
+    # Set when the person was shown the policy answer for a low-priority concern and
+    # chose "File it anyway": the complaint is then filed at L1 instead of being sent back.
+    file_anyway: bool = False
 
 class UpdateStatusRequest(BaseModel):
     grievance_id: str
@@ -1176,12 +1179,26 @@ async def submit_complaint(request: SubmitComplaintRequest, user: dict = Depends
         # Low-severity direct submissions are not formal grievances: hand them to the
         # policy assistant instead of storing a ticket or notifying anyone.
         # (Chatbot escalations are an explicit user choice to file, so they are kept.)
-        if not is_chatbot_escalated and severity.lower() == "low":
-            logging.info("Low-severity direct submission redirected to assistant (nothing stored)")
+        # The answer is shown on the form itself, with a "File it anyway" button that files the
+        # same text again with file_anyway=True, so nobody has to retype or log in to escalate.
+        file_low_anyway = not is_chatbot_escalated and severity.lower() == "low" and request.file_anyway
+        if not is_chatbot_escalated and severity.lower() == "low" and not request.file_anyway:
+            logging.info("Low-severity direct submission: policy answer returned (nothing stored)")
+            answer, sources = None, []
+            try:
+                rag = await asyncio.to_thread(get_rag_response, clean_desc_en)
+                answer = (rag or {}).get("answer")
+                sources = sorted({s.get("source") for s in (rag or {}).get("sources", []) if s.get("source")})
+                if answer and user_lang and user_lang != "en":
+                    answer = translate_text(answer, user_lang)
+            except Exception as rag_err:
+                logging.warning("Policy answer for a low-priority submission failed: %s", rag_err)
             return {
                 "redirect": "assistant",
                 "severity": severity,
                 "message": "This looks like a low-priority concern. The Purva assistant can help with it.",
+                "answer": answer,
+                "sources": sources,
             }
 
         # 🔹 STEP 3.5: ESCALATION AGENT (non-blocking)
@@ -1196,7 +1213,11 @@ async def submit_complaint(request: SubmitComplaintRequest, user: dict = Depends
         )
 
         # 🔹 STEP 4: DETERMINISTIC ROUTING — Tier/SLA Assignment
-        route_info = determine_initial_route(severity, category)
+        if file_low_anyway:
+            # Same routing as a Low concern handed over from the chatbot: L1, human handling
+            route_info = {**chatbot_handoff_route(category), "initial_handler": "L1"}
+        else:
+            route_info = determine_initial_route(severity, category)
 
         assigned_to = None
         assigned_admin_name = None

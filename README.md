@@ -15,7 +15,7 @@ complaints, while staff work through the complaints in tiered queues with SLA de
 | Area | Details |
 |------|---------|
 | **Filing** | Three stakeholder forms (Internal employee, Contract worker, External stakeholder), file attachments, anonymous filing, incident date (no future dates) |
-| **AI triage** | An LLM (Groq, `qwen/qwen3.8-27b`) sets severity (Low / Medium / High) and department (HR, IC, CRM, CSD, ESG, Investors). Keyword rules force High for POSH, site-safety and real bribery reports. Low form submissions are sent to the chatbot instead of being filed; if the AI is unavailable the complaint is filed as Medium. |
+| **AI triage** | An LLM (Groq, `qwen/qwen3.8-27b`) sets severity (Low / Medium / High) and department (HR, IC, CRM, CSD, ESG, Investors). Keyword rules force High for POSH, site-safety and real bribery reports. For a Low complaint the form first shows the policy answer, with **File it anyway** to file it at L1 without retyping; if the AI is unavailable the complaint is filed as Medium. |
 | **Routing and SLA** | Medium starts at L1, High at L2. Tier deadlines: L1 48 h, L2 24 h, L3 12 h, HEAD 4 h. A background monitor checks every 5 minutes and escalates overdue complaints L1 → L2 → L3 → HEAD. Resolution deadlines follow working-day rules (`sla_policies`) and the holiday calendar (`holidays`). |
 | **Policy chatbot ("Purva")** | Answers from ~40 company policy documents using hybrid search (BM25 keywords + vector meaning-based search, merged). Turns complaint-like messages into a filing with the right severity and department. |
 | **Tracking** | Anyone with a complaint ID (first 5+ characters) sees its status, deadline and documents shared with them. Logged-in users see their own complaints on a dashboard. |
