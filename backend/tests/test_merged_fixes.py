@@ -251,8 +251,11 @@ def test_low_severity_chatbot_escalation_is_still_stored(client, monkeypatch):
     _classify(monkeypatch, "LOW")
     fake.handler = lambda t, ops: [{"grievance_id": "g1"}] if t == "grievances" else []
     monkeypatch.setattr(main, "run_escalation_agent", MagicMock(), raising=False)
+    # A real chatbot escalation carries the signed triage from /api/agents/chat
+    token = main.make_escalation_token("LOW", "HR", "Still unresolved")
     r = c.post("/submit-complaint", json={"description": "Still unresolved", "source": "CHATBOT_ESCALATION",
-                                          "prefilled_severity": "LOW", "prefilled_department": "HR"})
+                                          "prefilled_severity": "LOW", "prefilled_department": "HR",
+                                          "escalation_token": token})
     assert "redirect" not in r.json()
     assert fake.ops_for("grievances", "insert")
 

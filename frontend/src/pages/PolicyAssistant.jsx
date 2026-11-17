@@ -110,7 +110,8 @@ function PolicyAssistant() {
               policy_name: meta.policy_name || '',
               intent: meta.intent || '',
               condensed_message: meta.condensed_message || '',
-              original_query: meta.original_query || ''
+              original_query: meta.original_query || '',
+              escalation_token: meta.escalation_token || null
             };
           }));
         } else {
@@ -309,7 +310,9 @@ function PolicyAssistant() {
         policy_name: data.policy_name || '',
         intent: data.intent || 'QUERY',
         condensed_message: data.condensed_message || '',
-        original_query: trimmed
+        original_query: trimmed,
+        // Signed triage from the server; lets the form file with the chatbot's severity
+        escalation_token: data.escalation_token || null
       };
       setMessages(prev => [...prev, botMsg]);
       if (currentSessionId) {
@@ -333,7 +336,8 @@ function PolicyAssistant() {
               policy_name: botMsg.policy_name,
               intent: botMsg.intent,
               condensed_message: botMsg.condensed_message,
-              original_query: botMsg.original_query
+              original_query: botMsg.original_query,
+              escalation_token: botMsg.escalation_token
             }
           })
         });
@@ -666,6 +670,7 @@ function PolicyAssistant() {
                                 description: getQueryDescription(msg),
                                 department: msg.department || '',
                                 source: 'CHATBOT_ESCALATION',
+                                  escalation_token: msg.escalation_token || null,
                                 severity: msg.severity || 'MEDIUM'
                               }
                             });
@@ -699,6 +704,7 @@ function PolicyAssistant() {
                                 description: getQueryDescription(msg),
                                 department: msg.department || '',
                                 source: 'CHATBOT_ESCALATION',
+                                  escalation_token: msg.escalation_token || null,
                                 severity: 'LOW'
                               }
                             });
@@ -732,6 +738,7 @@ function PolicyAssistant() {
                                 description: getQueryDescription(msg),
                                 department: msg.department || '',
                                 source: 'CHATBOT_ESCALATION',
+                                  escalation_token: msg.escalation_token || null,
                                 severity: 'LOW'
                               }
                             });
