@@ -6,6 +6,8 @@ import { supabase } from "../services/supabaseClient";
 import { apiClient } from "../services/api";
 import FileUpload from "../components/FileUpload";
 import { saveToQueue } from "../services/offlineQueue";
+import ProjectPicker from "../components/ProjectPicker";
+import { initialProject } from "../utils/projectSelection";
 import "./Lodge.css";
 import { todayLocalISO } from "../utils/dates";
 import { apiErrorMessage } from "../utils/apiError";
@@ -13,6 +15,8 @@ import { apiErrorMessage } from "../utils/apiError";
 function LodgeInternal() {
   const navigate = useNavigate();
   const location = useLocation();
+  // Optional project: pre-selected from ?project= in the link or the last choice in this tab
+  const [project, setProject] = useState(() => initialProject(location.search));
   const [submittedId, setSubmittedId] = useState(null);
   const [queryRedirect, setQueryRedirect] = useState(null); // set when intent = Query
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -84,6 +88,7 @@ function LodgeInternal() {
         severity: location.state?.severity || null,
         prefilled_severity: location.state?.severity || null,
         prefilled_department: location.state?.department || null,
+        project: project?.name || null,
         is_anonymous: formData.isAnonymous
       },
     };
@@ -169,6 +174,15 @@ function LodgeInternal() {
                     Filing as: <strong>Internal Employee</strong>
                   </div>
                 )}
+
+                {/* Step 1 (optional): which project the complaint is about */}
+                <ProjectPicker
+                  value={project}
+                  onChange={(p) => {
+                    setProject(p);
+                    if (p?.location) setFormData((prev) => ({ ...prev, projectLocation: prev.projectLocation || p.location }));
+                  }}
+                />
 
                 <form onSubmit={handleSubmit}>
                   <div className="row">

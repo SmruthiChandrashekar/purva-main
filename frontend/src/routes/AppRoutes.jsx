@@ -1,9 +1,10 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { LanguageProvider } from "../context/LanguageContext";
 import { AuthProvider, useAuth } from "../context/AuthProvider";
 import Layout from "../layout/Layout";
 import ProtectedRoute from "./ProtectedRoute";
+import { nextFromLocation } from "../utils/returnTo";
 
 const Index = lazy(() => import("../pages/Index"));
 const Track = lazy(() => import("../pages/Track"));
@@ -20,10 +21,14 @@ const SuperAdminPortal = lazy(() => import("../pages/SuperAdminPortal"));
 const SetPassword = lazy(() => import("../pages/SetPassword"));
 const PolicyAssistant = lazy(() => import("../pages/PolicyAssistant"));
 const Profile = lazy(() => import("../pages/Profile"));
-const PurvaSimulation = lazy(() => import("../pages/PurvaSimulation"));
-const BengaluruResidential = lazy(() => import("../pages/BengaluruResidential"));
 const StakeholderHub = lazy(() => import("../pages/StakeholderHub"));
-const ProjectDetail = lazy(() => import("../pages/ProjectDetail"));
+
+// Old links to the retired Puravankara website simulation: a project page now opens the
+// complaint flow with that project pre-selected; every other simulation page goes home.
+const OldProjectPage = () => {
+  const { projectId } = useParams();
+  return <Navigate to={`/lodge-selection?project=${encodeURIComponent(projectId || "")}`} replace />;
+};
 
 const PageLoader = () => (
   <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
@@ -55,7 +60,8 @@ const MainRoutes = () => {
       <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Puravankara website simulation is the landing page; the GRM portal lives at /grm */}
-        <Route path="/" element={<PurvaSimulation />} />
+        {/* The portal is the front door (the QR code points here) */}
+        <Route path="/" element={getRootElement()} />
         <Route path="/grm" element={getRootElement()} />
         
         {/* Protected User Routes */}
@@ -68,12 +74,16 @@ const MainRoutes = () => {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
         {/* Public Routes */}
-        <Route path="/residential/bengaluru/:projectId" element={<ProjectDetail />} />
-        <Route path="/residential/bengaluru" element={<BengaluruResidential />} />
+        {/* Retired website simulation: keep old links working */}
+        <Route path="/residential/bengaluru/:projectId" element={<OldProjectPage />} />
+        <Route path="/residential/*" element={<Navigate to="/" replace />} />
+        <Route path="/bengaluru" element={<Navigate to="/" replace />} />
+        <Route path="/purva" element={<Navigate to="/" replace />} />
+        <Route path="/simulation" element={<Navigate to="/" replace />} />
         <Route path="/assistant" element={<PolicyAssistant />} />
         <Route path="/help" element={<Help />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/login" element={isAuthenticated && !isAdmin && !window.location.search.includes("message=") && !sessionStorage.getItem("phoneVerifyPending") ? <Navigate to="/grm" replace /> : <Auth />} />
+        <Route path="/login" element={isAuthenticated && !isAdmin && !window.location.search.includes("message=") && !sessionStorage.getItem("phoneVerifyPending") ? <Navigate to={nextFromLocation() || "/grm"} replace /> : <Auth />} />
         <Route path="/register" element={<Auth />} />
 
         {/* Admin Routes */}

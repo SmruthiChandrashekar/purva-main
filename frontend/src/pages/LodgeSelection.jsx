@@ -16,9 +16,6 @@ function LodgeSelection() {
           <div className="d-inline-flex align-items-center gap-2 px-3 py-1 mb-3 rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 fs-sm fw-semibold">
             <span>&#127960;</span>
             <span>Residential Project: {projectParam}</span>
-            <Link to="/residential/bengaluru" className="text-decoration-none ms-2 small text-primary opacity-75">
-              (&larr; Change)
-            </Link>
           </div>
         )}
         <h2 className="fw-bold text-heading fs-h2">{t("selectCategory")}</h2>
@@ -31,7 +28,7 @@ function LodgeSelection() {
         
         {/* INTERNAL EMPLOYEES */}
         <div className="col-md-4">
-          <Link to="/lodge-internal" className="text-decoration-none">
+          <Link to={`/lodge-internal${querySuffix}`} className="text-decoration-none">
             <div 
               className="card h-100 border-0 text-center p-5 cursor-pointer tile-card lodge-select-card is-internal"
             >
@@ -49,7 +46,7 @@ function LodgeSelection() {
 
         {/* CONTRACT WORKFORCE */}
         <div className="col-md-4">
-          <Link to="/lodge-contract" className="text-decoration-none">
+          <Link to={`/lodge-contract${querySuffix}`} className="text-decoration-none">
             <div 
               className="card h-100 border-0 text-center p-5 cursor-pointer tile-card lodge-select-card is-contract"
             >

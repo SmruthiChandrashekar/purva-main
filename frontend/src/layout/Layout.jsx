@@ -8,13 +8,6 @@ function Layout({ children }) {
   const location = useLocation();
   const { user } = useAuth();
   const isAssistantPage = location.pathname === "/assistant";
-  // The Puravankara website simulation pages bring their own header and footer.
-  const isSimulation = location.pathname === "/" || location.pathname.startsWith("/residential");
-
-  if (isSimulation) {
-    return <>{children}</>;
-  }
-
   return (
     <>
       <Navbar />

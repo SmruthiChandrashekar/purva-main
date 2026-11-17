@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useLanguage } from "../context/LanguageContext";
 import "./Auth.css";
+import { nextFromLocation } from "../utils/returnTo";
 
 // While the phone-verification step is pending, /login must not auto-redirect the
 // (already signed-in) user to the dashboard. AppRoutes reads this same key.
@@ -17,6 +18,9 @@ const setVerifyPending = (on) => {
 // After login, a complainant who came from a project page goes straight to
 // filing for that project; everyone else lands on the GRM home.
 const afterLoginPath = () => {
+  // Back to the page they were trying to open, if any
+  const next = nextFromLocation();
+  if (next) return next;
   const project = sessionStorage.getItem("purva_selected_project");
   return project ? `/lodge-selection?project=${encodeURIComponent(project)}` : "/grm";
 };
