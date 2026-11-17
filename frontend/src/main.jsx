@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import "./i18n"; // Initialize enterprise i18next
 import "./styles/global.css";
 import App from "./App";
+// Loaded after App (and the CSS its components import) so the responsive rules win
+import "./styles/responsive.css";
 import { ThemeProvider } from "./context/ThemeContext";
 
 // Register Service Worker for PWA (offline caching + background sync)
