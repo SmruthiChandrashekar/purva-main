@@ -18,7 +18,7 @@ Claim work here **before** editing, so the other person doesn't touch the same f
 
 | Who | Started | Repos | Files / area | What |
 |-----|---------|-------|--------------|------|
-| Smruthi | 2026-11-18 | main + esg | agents/escalation/notifier.py | Emails show the real portal link instead of Brevo's long tracking link |
+| _(none)_ | | | | |
 
 ---
 
@@ -28,12 +28,6 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 
 **Entry format:**
 ```
-### 2026-11-18 · Teja · Safari "Application Error" after a deploy
-- Repos: main a4b11bf · esg 544032e
-- What: Every deploy renames and deletes the old page code files. In a tab opened before the deploy, Vercel answered requests for the old files with the HTML page. Safari then showed "'text/html' is not a valid JavaScript MIME type", which the reload-once fix didn't recognise (it only knew Chrome and Firefox wording). Now missing /assets/ files return 404, and the Safari wordings also trigger the one automatic reload.
-- Files: frontend/vercel.json, frontend/src/utils/newVersionReload.js
-- Deploy: Vercel (both)
-
 ### YYYY-MM-DD · Who · short title
 - Repos: main <commit> · esg <commit>   (or "main only" / "esg only")
 - What: one or two plain sentences on what changed and why.
@@ -41,6 +35,18 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Deploy: what has to be redeployed (Vercel / Render / Supabase SQL), or "none"
 - Follow-up: anything left open (optional)
 ```
+
+### 2026-11-18 · Smruthi · Emails show the real portal link, not Brevo's tracking link
+- Repos: main 560b6f1 · esg 98ee708
+- What: Brevo's click tracking turned every link in our plain-text emails into a long tracking address, so admins saw that instead of the portal link. Every email the app sends now also has an HTML version whose visible link text is the real address (Brevo can still count clicks behind it). Applies to all app emails, including complainant emails.
+- Files: agents/escalation/notifier.py
+- Deploy: Render (both backends)
+
+### 2026-11-18 · Teja · Safari "Application Error" after a deploy
+- Repos: main a4b11bf · esg 544032e
+- What: Every deploy renames and deletes the old page code files. In a tab opened before the deploy, Vercel answered requests for the old files with the HTML page. Safari then showed "'text/html' is not a valid JavaScript MIME type", which the reload-once fix didn't recognise (it only knew Chrome and Firefox wording). Now missing /assets/ files return 404, and the Safari wordings also trigger the one automatic reload.
+- Files: frontend/vercel.json, frontend/src/utils/newVersionReload.js
+- Deploy: Vercel (both)
 
 ### 2026-11-18 · Teja · Shared ledger and Claude Code rules
 - Repos: main (LEDGER.md + CLAUDE.md, this commit) · esg 7f98d32 (CLAUDE.md)
