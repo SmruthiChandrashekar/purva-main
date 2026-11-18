@@ -36,6 +36,13 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Follow-up: anything left open (optional)
 ```
 
+### 2026-11-18 · RishabhWDB · Backend can run on Azure Container Apps
+- Repos: main a460761 (main only; esg not done)
+- What: Added a Dockerfile and deploy scripts so the backend can run on Azure Container Apps in its own resource group (`purva-main`), with a GitHub Actions deploy on every push to main that changes the backend. New files only (plus `.env.azure` in `.gitignore`); the app code, Render and Vercel are unchanged.
+- Files: Dockerfile, .dockerignore, deploy/render-env.sh, deploy/azure.sh, deploy/github-setup.sh, deploy/AZURE.md, .github/workflows/azure.yml, .gitignore
+- Deploy: none yet. Steps in deploy/AZURE.md: the supervisor runs the scripts in Azure Cloud Shell, then Smruthi sets 4 GitHub Actions variables and runs `gh workflow run azure.yml`. The workflow does nothing until those variables exist.
+- Follow-up: when switching the website to Azure, change `VITE_API_BASE_URL` in Vercel and suspend Render soon after (both backends run the SLA monitor, so escalation emails can go out twice).
+
 ### 2026-11-18 · Smruthi · Complaint forms check for enough detail, like the chat
 - Repos: main c944aaf · esg c97bf2f
 - What: On Submit, every complaint form now runs the same "is there enough detail (what, where, when)?" check as the chat, through the new `/api/agents/check-complaint`. If details are missing, the chatbot popup opens and asks; the answer is added to the form's description under "Additional details" and the person reviews and presses Submit. At most 2 questions; urgent reports (harassment, safety, bribery) are never held up; "Submit without these details" is always offered; if the check fails the form is filed as before. Complaints handed over from the chat skip it (already checked there). ESG only: the chatbot now shows for guests too (no saved history, voice or "Speak to a Human", which need a login), the guest form uses the same follow-ups, and the chatbot's form button sends guests to the guest form (`/login?mode=guest`).
