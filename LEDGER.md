@@ -36,6 +36,13 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Follow-up: anything left open (optional)
 ```
 
+### 2026-11-18 · RishabhWDB · Website can move from Vercel to Azure
+- Repos: main c4d733e (main only; esg not done)
+- What: Added files to host the website on Azure Static Web Apps (Free plan), next to the backend that already runs on Azure. New files only; the frontend code, vercel.json and the Vercel project are unchanged, so the site stays on Vercel until the switch.
+- Files: deploy/staticwebapp.config.json, deploy/azure-frontend.sh, deploy/vercel-env.sh, deploy/AZURE-WEBSITE.md, .github/workflows/azure-frontend.yml, deploy/AZURE.md (link)
+- Deploy: none yet. Steps in deploy/AZURE-WEBSITE.md: supervisor runs azure-frontend.sh and azure.sh in Cloud Shell; Smruthi sets AZURE_STATIC_WEB_APP and the VITE_* Actions variables and runs `gh workflow run azure-frontend.yml`.
+- Follow-up: the website address changes (QR codes point at purva-main.vercel.app). Keep Vercel until they are reprinted, or set up a company domain. At the switch: Supabase Auth URLs and FRONTEND_URL.
+
 ### 2026-11-18 · RishabhWDB · Azure: use the shared Container Apps environment
 - Repos: main 2064d16 (main only)
 - What: The Azure free trial allows only one Container Apps environment and another project already has it, so purva-main now runs in that environment (`purva-bot-env`) instead of its own. Its app, secrets, settings, registry and deploy identity are still separate, and no setting was renamed (settings belong to each app, so they can't clash).
