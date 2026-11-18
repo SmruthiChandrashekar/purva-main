@@ -4,19 +4,50 @@ This runs the **backend API** (`backend/`, `agents/`, `rag/`) on Azure Container
 The website stays on Vercel and Supabase stays as it is. The Render service is not
 touched and keeps running until you switch over.
 
-The project shares nothing with other projects in the subscription. Everything is in
-its own resource group:
+The project has its own resource group, registry, app, settings and deploy identity.
+Only the **Container Apps environment** is shared, because the subscription (a free trial)
+allows just one environment in total, and another project already has it:
 
-| What | Name |
-|------|------|
-| Resource group | `purva-main` (Central India, subscription `82aaf9d4-…`) |
-| Container registry (Basic) | `purvamain82aaf9d4` |
-| Container Apps environment (+ its Log Analytics workspace) | `purva-main-env` |
-| Container app | `purva-main` |
-| Deploy identity for GitHub | `purva-main-github` |
+| What | Name | Whose |
+|------|------|-------|
+| Resource group | `purva-main` (Central India, subscription `82aaf9d4-…`) | this project |
+| Container registry (Basic) | `purvamain82aaf9d4` | this project |
+| Container app (with its own secrets and settings) | `purva-main` | this project |
+| Deploy identity for GitHub | `purva-main-github` | this project |
+| Container Apps environment | `purva-bot-env` in group `purva-bot` | **shared**, only read, never changed |
 
 All names come from `APP_NAME=purva-main` and can be overridden with environment
-variables (`APP_NAME`, `RESOURCE_GROUP`, `ACR_NAME`, `ENV_NAME`, `SUBSCRIPTION_ID`).
+variables (`APP_NAME`, `RESOURCE_GROUP`, `ACR_NAME`, `SUBSCRIPTION_ID`, and for the
+shared environment `ENV_NAME`, `ENV_RESOURCE_GROUP`). Don't set `LOCATION`: the app runs
+where the shared environment is (Central India).
+
+## What is shared, and why settings can't clash
+
+**Settings belong to the app, not the environment.** Every secret and environment
+variable (`SUPABASE_URL`, `GROQ_API_KEY`, …) is stored on the `purva-main` app itself.
+Another app in the same environment can use the same names with different values: neither
+app can see or overwrite the other's. So **no setting has been renamed**: the names
+are exactly the ones in `backend/.env.example` and on Render, and the backend code is
+unchanged.
+
+| Shared through the environment | Effect on this project |
+|-------------------------------|------------------------|
+| App names must be unique in the environment | `azure.sh` checks that no other project already has an app called `purva-main`, and stops if one does (rerun with `APP_NAME=<other>`). |
+| Web address ending (`<app>.<env-domain>.centralindia.azurecontainerapps.io`) | Each app gets its own address from its own name. |
+| The environment's Log Analytics workspace (in `purva-bot`) | This app's console logs go there too. People with access to `purva-bot` can read them, and the (small) log cost is billed there. The backend doesn't log secret values. |
+| The environment itself | If the other project deletes or recreates `purva-bot-env`, this app goes down with it. Agree with them before anyone changes it. |
+
+**Not shared:** secrets, environment variables, the image registry, the app's own pull
+identity, the deploy identity and its permissions, scaling, and the bill for the app itself.
+
+**The one permission outside this project's group:** GitHub's deploy identity gets a
+custom role on `purva-bot-env` with only `managedEnvironments/read` and
+`managedEnvironments/join/action`. Azure checks that permission every time an app in the
+environment is updated. It can't change the environment or any other app in it.
+
+**The script's own settings changed, not the app's:** `azure.sh` and `github-setup.sh` now
+read `ENV_NAME` (default `purva-bot-env`) and `ENV_RESOURCE_GROUP` (default `purva-bot`)
+instead of creating `purva-main-env`.
 
 **How deploys work:** Azure never builds anything (the free trial blocks ACR Tasks).
 GitHub Actions builds the image with Docker, pushes it to the project's registry and
@@ -68,13 +99,16 @@ To preview first (every command printed, secret values masked, nothing changed):
 DRY_RUN=1 bash deploy/azure.sh
 ```
 
-It creates whatever is missing (group, registry, environment, app on the placeholder),
-stores each setting as a Container Apps **secret**, and lets the app pull from the
-registry with its own managed identity (no registry password). At the end it prints the
-app's address and says whether it is still on the placeholder.
+It creates whatever is missing (group, registry, and the app on the placeholder inside the
+shared environment), stores each setting as a Container Apps **secret** on the app, and
+lets the app pull from the registry with its own managed identity (no registry password).
+At the end it prints the app's address and says whether it is still on the placeholder.
 
 If Azure answers **InternalServerError** (it sometimes does even when the step worked),
 run `bash deploy/azure.sh` again. Every step checks what already exists.
+
+If it lists **unused log workspaces** in `purva-main` (left by earlier attempts to create a
+separate environment), run the delete lines it prints. They're empty and not needed.
 
 ### 4. Let GitHub deploy
 
@@ -83,8 +117,14 @@ bash deploy/github-setup.sh
 ```
 
 It creates the identity `purva-main-github`, trusts GitHub Actions runs on `main` of this
-repo (both subject forms GitHub uses), and grants it only **Contributor on the
-`purva-main` group** and **AcrPush on its registry**. It is safe to rerun.
+repo (both subject forms GitHub uses), and grants it only:
+- **Contributor** on the `purva-main` group,
+- **AcrPush** on its registry,
+- on the shared `purva-bot-env` only: a custom role, **Container Apps environment join
+  (purva-bot-env)**, with `read` + `join/action`. Updating an app in that environment
+  needs it, and it can't change the environment or other apps.
+
+It is safe to rerun.
 
 It prints four `gh variable set …` lines. **Send them to the repo owner.**
 
@@ -138,8 +178,8 @@ Rough monthly cost (list prices; check the Azure pricing calculator for Central 
 |------|-------------|
 | Container registry, Basic | US$5 |
 | App: one always-on 0.25 vCPU / 0.5 GiB replica | US$6 when mostly idle, up to US$20 if busy all the time (less while the subscription's monthly free grant lasts) |
-| Log Analytics (app logs) | under US$1 at this volume (first 5 GB/month free) |
-| Environment itself (Consumption) | US$0 |
+| Log Analytics (app logs) | under US$1 at this volume, billed in the shared environment's workspace (`purva-bot`) |
+| Environment (shared, Consumption) | US$0 |
 | **Total** | **≈ US$11–12, at most ≈ US$26** |
 
 ## Things to know
@@ -159,5 +199,11 @@ Rough monthly cost (list prices; check the Azure pricing calculator for Central 
 az group delete -n purva-main
 ```
 
-This deletes this project only: app, environment, logs workspace, registry and deploy
-identity. Nothing outside the `purva-main` group is affected.
+This deletes this project only: app, registry and deploy identity. The shared environment
+`purva-bot-env` and the other project's app stay as they are. Also remove this project's
+permission on the shared environment (the role assignment goes away with the identity;
+the role definition is left over):
+
+```bash
+az role definition delete --name "Container Apps environment join (purva-bot-env)"
+```

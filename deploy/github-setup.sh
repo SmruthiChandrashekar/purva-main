@@ -12,8 +12,17 @@
 # and grants that identity only:
 #   - Contributor on this project's resource group (it holds only this project)
 #   - AcrPush on this project's registry
+#   - on the SHARED Container Apps environment only: a custom role with just
+#     managedEnvironments/read + managedEnvironments/join/action. Azure checks join/action
+#     on the environment every time an app in it is updated, and the environment sits in
+#     another group. It cannot change the environment or touch any other app in it.
 # At the end it prints four `gh variable set` lines for the repo owner.
 set -euo pipefail
+
+# Shared Container Apps environment (the subscription allows only one)
+ENV_NAME="${ENV_NAME:-purva-bot-env}"
+ENV_RESOURCE_GROUP="${ENV_RESOURCE_GROUP:-purva-bot}"
+ENV_ROLE_NAME="${ENV_ROLE_NAME:-Container Apps environment join ($ENV_NAME)}"
 
 APP_NAME="${APP_NAME:-purva-main}"
 SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-82aaf9d4-d161-4dab-8ecf-dff34de35353}"
@@ -60,9 +69,12 @@ TENANT_ID="$(az account show --query tenantId -o tsv)"
 RG_ID="$(az group show -n "$RESOURCE_GROUP" --query id -o tsv)"
 ACR_ID="$(az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" --query id -o tsv 2>/dev/null)" \
   || die "registry $ACR_NAME not found in $RESOURCE_GROUP. Run deploy/azure.sh first."
-echo "Repo:     $REPO (branch $BRANCH, owner id $OWNER_ID, repo id $REPO_ID)"
-echo "Group:    $RG_ID"
-echo "Registry: $ACR_NAME"
+ENV_ID="$(az containerapp env show -n "$ENV_NAME" -g "$ENV_RESOURCE_GROUP" --query id -o tsv 2>/dev/null)" \
+  || die "shared environment $ENV_NAME not found in $ENV_RESOURCE_GROUP"
+echo "Repo:        $REPO (branch $BRANCH, owner id $OWNER_ID, repo id $REPO_ID)"
+echo "Group:       $RG_ID"
+echo "Registry:    $ACR_NAME"
+echo "Environment: $ENV_ID (shared)"
 
 say "Managed identity $IDENTITY in $RESOURCE_GROUP"
 if az identity show -n "$IDENTITY" -g "$RESOURCE_GROUP" -o none 2>/dev/null; then
@@ -125,9 +137,33 @@ grant() {
   die "could not grant $role on $label"
 }
 
-say "Roles for $IDENTITY (this project only)"
-grant "Contributor" "$RG_ID"  "resource group $RESOURCE_GROUP"
-grant "AcrPush"     "$ACR_ID" "registry $ACR_NAME"
+say "Custom role '$ENV_ROLE_NAME' (assignable only on the shared environment)"
+if [ -n "$(az role definition list --name "$ENV_ROLE_NAME" --custom-role-only true --query "[0].id" -o tsv 2>/dev/null)" ]; then
+  echo "exists"
+else
+  role_file="$(mktemp)"
+  cat > "$role_file" <<JSON
+{
+  "Name": "$ENV_ROLE_NAME",
+  "IsCustom": true,
+  "Description": "Read the Container Apps environment $ENV_NAME and deploy apps into it. Cannot change the environment or other apps.",
+  "Actions": [
+    "Microsoft.App/managedEnvironments/read",
+    "Microsoft.App/managedEnvironments/join/action"
+  ],
+  "NotActions": [],
+  "AssignableScopes": ["$ENV_ID"]
+}
+JSON
+  az role definition create --role-definition "@$role_file" -o none
+  rm -f "$role_file"
+  echo "created"
+fi
+
+say "Roles for $IDENTITY"
+grant "Contributor"     "$RG_ID"  "resource group $RESOURCE_GROUP"
+grant "AcrPush"         "$ACR_ID" "registry $ACR_NAME"
+grant "$ENV_ROLE_NAME"  "$ENV_ID" "shared environment $ENV_NAME (join only)"
 
 say "Done. Send these four lines to the repo owner ($OWNER):"
 echo

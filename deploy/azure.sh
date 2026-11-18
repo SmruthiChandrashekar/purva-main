@@ -6,7 +6,12 @@
 #   bash deploy/azure.sh             # create what's missing, apply .env.azure
 #   DRY_RUN=1 bash deploy/azure.sh   # print the commands (secrets masked), change nothing
 #
-# Everything lives in this project's own resource group: registry, environment, app.
+# This project's own resource group holds the registry, the app and (via
+# github-setup.sh) the deploy identity. The Container Apps ENVIRONMENT is shared: the
+# subscription (free trial) allows only one, so the app joins the existing one. This
+# script only reads that environment; it never creates or changes it. Settings
+# (secrets, env vars) belong to the app, not the environment, so they can't clash with
+# other apps in it. See "What is shared" in deploy/AZURE.md.
 # It never builds images: GitHub Actions builds and pushes them (.github/workflows/azure.yml).
 # A new app starts on a placeholder image until the first GitHub deploy.
 # Settings come from .env.azure (write it with deploy/render-env.sh). See deploy/AZURE.md.
@@ -20,7 +25,9 @@ SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-82aaf9d4-d161-4dab-8ecf-dff34de35353}"
 LOCATION="${LOCATION:-centralindia}"
 RESOURCE_GROUP="${RESOURCE_GROUP:-$APP_NAME}"
 ACR_NAME="${ACR_NAME:-$(printf '%s' "$APP_NAME" | tr -cd 'a-zA-Z0-9' | tr 'A-Z' 'a-z')${SUBSCRIPTION_ID:0:8}}"
-ENV_NAME="${ENV_NAME:-$APP_NAME-env}"
+# Shared Container Apps environment (read only; the subscription allows just one)
+ENV_NAME="${ENV_NAME:-purva-bot-env}"
+ENV_RESOURCE_GROUP="${ENV_RESOURCE_GROUP:-purva-bot}"
 ENV_FILE="${ENV_FILE:-.env.azure}"
 PLACEHOLDER_IMAGE="${PLACEHOLDER_IMAGE:-docker.io/nginxinc/nginx-unprivileged:alpine}"
 
@@ -183,7 +190,8 @@ done
 ENV_ARGS+=("PORT=$TARGET_PORT")
 
 echo "Settings from $ENV_FILE (${#KEYS[@]}): ${KEYS[*]}"
-echo "App $APP_NAME | group $RESOURCE_GROUP | registry $ACR_NAME | environment $ENV_NAME | $LOCATION"
+echo "App $APP_NAME | group $RESOURCE_GROUP | registry $ACR_NAME | $LOCATION"
+echo "Shared environment $ENV_NAME (group $ENV_RESOURCE_GROUP): only read, never changed"
 [ "$DRY_RUN" = "1" ] && echo "DRY RUN: nothing will be changed."
 
 # ---------------------------------------------------------------------------
@@ -229,14 +237,19 @@ else
 fi
 ACR_SERVER="$ACR_NAME.azurecr.io"
 
-say "Container Apps environment $ENV_NAME"
-if exists az containerapp env show -n "$ENV_NAME" -g "$RESOURCE_GROUP"; then
-  echo "exists"
-else
-  # Also creates this project's own Log Analytics workspace in the same group
-  run az containerapp env create -n "$ENV_NAME" -g "$RESOURCE_GROUP" -l "$LOCATION" \
-    --only-show-errors -o none
-fi
+say "Shared Container Apps environment $ENV_NAME (in $ENV_RESOURCE_GROUP, read only)"
+ENV_ID="$(lookup "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$ENV_RESOURCE_GROUP/providers/Microsoft.App/managedEnvironments/$ENV_NAME" \
+  az containerapp env show -n "$ENV_NAME" -g "$ENV_RESOURCE_GROUP" --query id -o tsv)"
+echo "$ENV_ID"
+
+# App names must be unique inside an environment. Stop if another project already uses ours.
+other_rgs="$(az containerapp list --environment "$ENV_ID" --query "[?name=='$APP_NAME'].resourceGroup" -o tsv 2>/dev/null || true)"
+for rg in $other_rgs; do
+  if [ "$(printf '%s' "$rg" | tr 'A-Z' 'a-z')" != "$(printf '%s' "$RESOURCE_GROUP" | tr 'A-Z' 'a-z')" ]; then
+    die "an app named '$APP_NAME' already exists in $ENV_NAME (resource group $rg). Rerun with APP_NAME=<other name>."
+  fi
+done
+echo "App name '$APP_NAME' is free in this environment (or already ours)"
 
 # ---------------------------------------------------------------------------
 # The app
@@ -250,7 +263,7 @@ else
   create_cmd=(az containerapp create
     --name "$APP_NAME"
     --resource-group "$RESOURCE_GROUP"
-    --environment "$ENV_NAME"
+    --environment "$ENV_ID"
     --image "$PLACEHOLDER_IMAGE"
     --ingress external
     --target-port "$TARGET_PORT"
@@ -322,6 +335,17 @@ fi
 FQDN="$(lookup "" az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)"
 IMAGE_NOW="$(lookup "" az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" --query "properties.template.containers[0].image" -o tsv)"
 URL="https://$FQDN"
+
+# Earlier attempts to create a separate environment may have left empty Log Analytics
+# workspaces in this group. They aren't used; point them out (never deleted automatically).
+leftovers="$(az monitor log-analytics workspace list -g "$RESOURCE_GROUP" --query "[].name" -o tsv 2>/dev/null || true)"
+if [ -n "$leftovers" ]; then
+  echo
+  echo "Unused log workspace(s) in $RESOURCE_GROUP from earlier attempts (safe to delete):"
+  for ws in $leftovers; do
+    echo "  az monitor log-analytics workspace delete -g $RESOURCE_GROUP -n $ws --yes"
+  done
+fi
 
 say "Done"
 echo "App address: $URL"
