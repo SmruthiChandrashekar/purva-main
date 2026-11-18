@@ -18,7 +18,7 @@ Claim work here **before** editing, so the other person doesn't touch the same f
 
 | Who | Started | Repos | Files / area | What |
 |-----|---------|-------|--------------|------|
-| _(none)_ | | | | |
+| Smruthi | 2026-11-18 | main + esg | Lodge forms, GuestComplaintForm (esg), Chatbot, Layout (esg), backend/main.py (new /api/agents/check-complaint) | Complaint forms check for enough detail like the chat does; missing details are asked in the chatbot popup and added to the form. Chatbot for guests (esg). |
 
 ---
 
