@@ -7,6 +7,10 @@ import NotificationDropdown from "./NotificationDropdown";
 import "./Navbar.css";
 import { lodgeRouteFor } from "../utils/lodgeRoute";
 
+// The bar only shows the first name ("Hi, SMRUTHI"); long full names pushed Logout
+// off the screen. The full name is in the tooltip and on the profile page.
+const firstName = (name) => (name || "").trim().split(/\s+/)[0] || "";
+
 function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -149,7 +153,7 @@ function Navbar() {
                   </div>
                 )}
                 <span className="fs-14 text-theme-muted">
-                  <span className="text-heading fw-bold">{userDetails?.name || "Admin"}</span>
+                  <span className="text-heading fw-bold" title={userDetails?.name || "Admin"}>{firstName(userDetails?.name) || "Admin"}</span>
                 </span>
               </Link>
               <button onClick={handleAdminLogout} className="btn btn-outline-danger px-3 fw-semibold fs-14">
@@ -178,7 +182,7 @@ function Navbar() {
                   </div>
                 )}
                 <span className="text-theme-muted nav-greeting">
-                  <i className="nav-greeting-hi">{t("hi")}</i> <span className="text-heading fw-bold text-uppercase ls-half">{userDetails?.name || "User"}</span>
+                  <i className="nav-greeting-hi">{t("hi")}</i> <span className="text-heading fw-bold text-uppercase ls-half" title={userDetails?.name || "User"}>{firstName(userDetails?.name) || "User"}</span>
                 </span>
               </Link>
               <button onClick={handleLogout} className="btn btn-danger">
