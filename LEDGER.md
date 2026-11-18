@@ -18,7 +18,7 @@ Claim work here **before** editing, so the other person doesn't touch the same f
 
 | Who | Started | Repos | Files / area | What |
 |-----|---------|-------|--------------|------|
-| _(none)_ | | | | |
+| Smruthi | 2026-11-18 | main + esg | agents/escalation/notifier.py | Emails show the real portal link instead of Brevo's long tracking link |
 
 ---
 
