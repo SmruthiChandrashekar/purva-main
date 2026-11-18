@@ -1,5 +1,7 @@
 # Backend on Azure Container Apps
 
+> Moving the website (frontend) to Azure as well: see [AZURE-WEBSITE.md](AZURE-WEBSITE.md).
+
 This runs the **backend API** (`backend/`, `agents/`, `rag/`) on Azure Container Apps.
 The website stays on Vercel and Supabase stays as it is. The Render service is not
 touched and keeps running until you switch over.

@@ -1,0 +1,118 @@
+# Builds the website (frontend/) and publishes it to Azure Static Web Apps on every push to
+# main that changes it. Same no-secrets login as the backend deploy (azure.yml): OIDC with
+# the purva-main-github identity. The Static Web App's upload token is fetched at deploy
+# time with that login and never stored.
+#
+# Stays switched off until the repo owner sets AZURE_STATIC_WEB_APP (printed by
+# deploy/azure-frontend.sh) plus the VITE_* variables (printed by deploy/vercel-env.sh).
+# See deploy/AZURE-WEBSITE.md.
+name: Deploy website to Azure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "deploy/staticwebapp.config.json"
+      - ".github/workflows/azure-frontend.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: azure-website-purva-main
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: purva-main
+  SWA_NAME: ${{ vars.AZURE_STATIC_WEB_APP }}
+
+jobs:
+  deploy:
+    if: vars.AZURE_CLIENT_ID != '' && vars.AZURE_STATIC_WEB_APP != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build website
+        working-directory: frontend
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_REQUIRE_PHONE_OTP: ${{ vars.VITE_REQUIRE_PHONE_OTP }}
+          VITE_INTERNAL_EMAIL_DOMAIN: ${{ vars.VITE_INTERNAL_EMAIL_DOMAIN }}
+        run: |
+          for v in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_API_BASE_URL; do
+            if [ -z "${!v}" ]; then echo "::error::Actions variable $v is not set"; exit 1; fi
+          done
+          npm ci
+          npm run build
+          # Routing for a single-page app (same as frontend/vercel.json)
+          cp ../deploy/staticwebapp.config.json dist/
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get upload token
+        id: token
+        run: |
+          token="$(az staticwebapp secrets list -n "$SWA_NAME" -g "$RESOURCE_GROUP" \
+            --query properties.apiKey -o tsv)"
+          if [ -z "$token" ]; then echo "::error::could not read the upload token of $SWA_NAME"; exit 1; fi
+          echo "::add-mask::$token"
+          echo "value=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Upload website
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.value }}
+          action: upload
+          app_location: frontend/dist
+          skip_app_build: true
+          skip_api_build: true
+
+      - name: Check the live site (up to 5 minutes)
+        env:
+          API_BASE: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          host="$(az staticwebapp show -n "$SWA_NAME" -g "$RESOURCE_GROUP" --query defaultHostname -o tsv)"
+          site="https://$host"
+          want="$(grep -oE '/assets/index-[^"]+\.js' frontend/dist/index.html | head -1)"
+          deadline=$((SECONDS + 300))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            # The new build must be live: its main script name is in the served page
+            if curl -fsS --max-time 15 "$site/" | grep -qF "$want"; then
+              # A page path must serve the app, and the app must call the right backend
+              curl -fsS --max-time 15 "$site/track" | grep -qF "$want" \
+                || { echo "::error::$site/track does not serve the app (routing)"; exit 1; }
+              curl -fsS --max-time 15 "$site$want" | grep -qF "$API_BASE" \
+                || { echo "::error::the live site does not call $API_BASE"; exit 1; }
+              code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$site/assets/does-not-exist.js")"
+              [ "$code" = "404" ] || { echo "::error::a missing /assets file returned $code, not 404"; exit 1; }
+              echo "Live: $site (backend $API_BASE)"
+              echo "Website deployed to $site" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Waiting for the new version at $site ..."
+            sleep 10
+          done
+          echo "::error::$site did not serve the new build within 5 minutes"
+          exit 1
