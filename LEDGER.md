@@ -36,6 +36,13 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Follow-up: anything left open (optional)
 ```
 
+### 2026-11-18 · RishabhWDB · Azure: use the shared Container Apps environment
+- Repos: main 2064d16 (main only)
+- What: The Azure free trial allows only one Container Apps environment and another project already has it, so purva-main now runs in that environment (`purva-bot-env`) instead of its own. Its app, secrets, settings, registry and deploy identity are still separate, and no setting was renamed (settings belong to each app, so they can't clash).
+- Files: deploy/azure.sh, deploy/github-setup.sh, deploy/AZURE.md
+- Deploy: none yet. In Cloud Shell: `git pull`, then `bash deploy/azure.sh` (without LOCATION) and `bash deploy/github-setup.sh`.
+- Follow-up: if the other project ever deletes or recreates `purva-bot-env`, this app goes down with it.
+
 ### 2026-11-18 · RishabhWDB · Backend can run on Azure Container Apps
 - Repos: main a460761 (main only; esg not done)
 - What: Added a Dockerfile and deploy scripts so the backend can run on Azure Container Apps in its own resource group (`purva-main`), with a GitHub Actions deploy on every push to main that changes the backend. New files only (plus `.env.azure` in `.gitignore`); the app code, Render and Vercel are unchanged.
