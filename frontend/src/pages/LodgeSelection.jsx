@@ -1,4 +1,6 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../context/AuthProvider";
+import { lodgeRouteFor } from "../utils/lodgeRoute";
 import { useLanguage } from "../context/LanguageContext";
 import "./LodgeSelection.css";
 
@@ -8,6 +10,14 @@ function LodgeSelection() {
   const projectParam = searchParams.get("project") || sessionStorage.getItem("purva_selected_project");
   // Only the external form has a project picker, so only it gets the project
   const querySuffix = projectParam ? `?project=${encodeURIComponent(projectParam)}` : "";
+  const { userDetails } = useAuth();
+
+  // People whose profile already says Internal/Contract/External don't need
+  // to pick again (e.g. after logging in from the File button or an old link).
+  if (userDetails?.user_type && lodgeRouteFor(userDetails.user_type) !== "/lodge-selection") {
+    const keepProject = userDetails.user_type === "External" ? querySuffix : "";
+    return <Navigate to={lodgeRouteFor(userDetails.user_type, keepProject)} replace />;
+  }
 
   return (
     <div className="container mt-5 mb-5 lodge-select-page">

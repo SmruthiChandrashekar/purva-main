@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthProvider";
 import ThemeToggle from "./ThemeToggle";
 import NotificationDropdown from "./NotificationDropdown";
 import "./Navbar.css";
+import { lodgeRouteFor } from "../utils/lodgeRoute";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -199,7 +200,7 @@ function Navbar() {
             {/* FILE A COMPLAINT: always in the bar so first-time visitors find it */}
             {!isAdmin && !location.pathname.startsWith("/lodge") && (
               <div>
-                <Link to="/lodge-selection" className="btn btn-danger btn-sm fw-semibold nav-file-btn" aria-label="File a complaint">
+                <Link to={lodgeRouteFor(userDetails?.user_type)} className="btn btn-danger btn-sm fw-semibold nav-file-btn" aria-label="File a complaint">
                   <i className="bi bi-pencil-square" aria-hidden="true"></i>
                   <span className="nav-file-label-full">File a complaint</span>
                   <span className="nav-file-label-short">File</span>

@@ -5,6 +5,7 @@ import { supabase } from "../services/supabaseClient";
 import { apiClient } from "../services/api";
 import { Link, useNavigate } from "react-router-dom";
 import "./Profile.css";
+import { lodgeRouteFor } from "../utils/lodgeRoute";
 
 function Profile() {
   const { user, userDetails, isAdmin, isSuperAdmin, refreshUserDetails, updateUserDetailsLocally } = useAuth();
@@ -1013,7 +1014,7 @@ function Profile() {
                 : "Keep your contact information current for timely assignment and resolution alerts."}
             </p>
             <Link 
-              to={isAdmin ? "/admin/dashboard" : "/lodge-selection"} 
+              to={isAdmin ? "/admin/dashboard" : lodgeRouteFor(userDetails?.user_type)} 
               className="btn btn-light text-navy btn-sm rounded-pill px-4 fw-bold shadow-sm"
             >
               {isAdmin ? "Go to Admin Dashboard" : "Lodge a Grievance"}

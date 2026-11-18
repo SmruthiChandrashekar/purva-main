@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 import { findProjectByNameOrId } from "../config/projectsData";
 import "./StakeholderHub.css";
+import { lodgeRouteFor } from "../utils/lodgeRoute";
 
 // Card copy per stakeholder type. External stakeholders also get the project
 // chosen on the Puravankara website.
@@ -51,15 +52,8 @@ const StakeholderHub = () => {
     : null;
   const activeProjectObj = projectParam ? findProjectByNameOrId(projectParam) : null;
 
-  const getLodgeRoute = () => {
-    const projQuery = projectParam ? `?project=${encodeURIComponent(projectParam)}` : "";
-    switch (userType) {
-      case "Internal": return "/lodge-internal";
-      case "Contract": return "/lodge-contract";
-      case "External": return `/lodge-external${projQuery}`;
-      default: return "/lodge-selection";
-    }
-  };
+  const getLodgeRoute = () =>
+    lodgeRouteFor(userType, isExternal && projectParam ? `?project=${encodeURIComponent(projectParam)}` : "");
 
   const handleTrackSubmit = (e) => {
     e.preventDefault();

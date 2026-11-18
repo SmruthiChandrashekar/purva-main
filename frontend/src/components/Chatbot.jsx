@@ -5,6 +5,7 @@ import { apiClient } from "../services/api";
 import { useAuth } from "../context/AuthProvider";
 
 import "./Chatbot.css";
+import { lodgeRouteFor } from "../utils/lodgeRoute";
 /**
  * Formats RAG text to convert asterisks to bullet points, 
  * handles bolding, and nicely formats the "Sources:" section.
@@ -29,15 +30,7 @@ const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const getLodgeRoute = () => {
-    if (!userDetails?.user_type) return "/lodge-selection";
-    switch (userDetails.user_type) {
-      case "Internal": return "/lodge-internal";
-      case "Contract": return "/lodge-contract";
-      case "External": return "/lodge-external";
-      default: return "/lodge-selection";
-    }
-  };
+  const getLodgeRoute = () => lodgeRouteFor(userDetails?.user_type);
 
   const stripEmojis = (str) => str ? str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]/gu, '').replace(/\s+/g, ' ').trim() : '';
 

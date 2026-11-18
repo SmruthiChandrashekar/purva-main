@@ -6,6 +6,7 @@ import { supabase } from "../services/supabaseClient";
 import { translateList } from "../services/translationService";
 import { apiClient } from "../services/api";
 import "./Dashboard.css";
+import { lodgeRouteFor } from "../utils/lodgeRoute";
 
 // The backend stores workflow states (HUMAN_HANDLING, CHATBOT_HANDLING); users see plain statuses.
 const normalizeStatus = (status) =>
@@ -27,15 +28,7 @@ function Dashboard() {
   const [feedbackComment, setFeedbackComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
-  const getLodgeRoute = () => {
-    if (!userDetails || !userDetails.user_type) return "/lodge-selection";
-    switch (userDetails.user_type) {
-      case "Internal": return "/lodge-internal";
-      case "Contract": return "/lodge-contract";
-      case "External": return "/lodge-external";
-      default: return "/lodge-selection";
-    }
-  };
+  const getLodgeRoute = () => lodgeRouteFor(userDetails?.user_type);
 
   useEffect(() => {
     if (!authLoading) {
