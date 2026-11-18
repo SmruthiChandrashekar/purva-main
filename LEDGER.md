@@ -37,7 +37,7 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 ```
 
 ### 2026-11-18 · Teja · Top-bar "Dashboard" link renamed to "Home"
-- Repos: main 8d29e7f · esg not needed (already says Home)
+- Repos: main 884c44e · esg not needed (already says Home)
 - What: When logged in, the top bar's link to the GRM home page (/grm) was labelled "Dashboard", right above the home page's own "Dashboard" button, so there were two different "Dashboards". The link now says Home (all 3 languages); the dashboard is reached from the home page button, as before.
 - Files: frontend/src/components/Navbar.jsx
 - Deploy: website (Vercel; Azure deploys on push)
