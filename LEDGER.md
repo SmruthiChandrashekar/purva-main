@@ -28,6 +28,12 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 
 **Entry format:**
 ```
+### 2026-11-18 · Teja · Safari "Application Error" after a deploy
+- Repos: main 12b23f6 · esg 544032e
+- What: Every deploy renames and deletes the old page code files. In a tab opened before the deploy, Vercel answered requests for the old files with the HTML page. Safari then showed "'text/html' is not a valid JavaScript MIME type", which the reload-once fix didn't recognise (it only knew Chrome and Firefox wording). Now missing /assets/ files return 404, and the Safari wordings also trigger the one automatic reload.
+- Files: frontend/vercel.json, frontend/src/utils/newVersionReload.js
+- Deploy: Vercel (both)
+
 ### YYYY-MM-DD · Who · short title
 - Repos: main <commit> · esg <commit>   (or "main only" / "esg only")
 - What: one or two plain sentences on what changed and why.
