@@ -82,9 +82,11 @@ function Navbar() {
             <span className="d-inline-block rounded-circle nav-live-dot"></span>
           </Link>
 
-          {/* Logged out: Home is the Puravankara website. Logged in: Dashboard is the GRM home. */}
+          {/* "Home" in both cases: logged out it's the front page, logged in it's the GRM home
+              (/grm). It used to say "Dashboard" when logged in, next to the home page's own
+              "Dashboard" button, which was confusing. The dashboard is reached from that button. */}
           <Link to={user ? "/grm" : "/"} className="me-4 text-decoration-none nav-link-custom">
-            {user ? t("dashboard") : t("home")}
+            {t("home")}
           </Link>
 
           <Link to="/track" className="me-4 text-decoration-none nav-link-custom">

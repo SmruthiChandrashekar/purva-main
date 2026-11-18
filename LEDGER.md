@@ -36,6 +36,12 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Follow-up: anything left open (optional)
 ```
 
+### 2026-11-18 · Teja · Top-bar "Dashboard" link renamed to "Home"
+- Repos: main 8d29e7f · esg not needed (already says Home)
+- What: When logged in, the top bar's link to the GRM home page (/grm) was labelled "Dashboard", right above the home page's own "Dashboard" button, so there were two different "Dashboards". The link now says Home (all 3 languages); the dashboard is reached from the home page button, as before.
+- Files: frontend/src/components/Navbar.jsx
+- Deploy: website (Vercel; Azure deploys on push)
+
 ### 2026-11-18 · Teja · Logout no longer pushed off the screen on desktop
 - Repos: main 2cc698d · esg 4df92a2
 - What: On wide screens the bar showed the full name ("Hi, SMRUTHI CHANDRASHEKAR"), and with the Purva link added the bar no longer fitted its 1320px width, so Logout went off screen (seen on the Azure site). The bar now shows the first name only (full name on hover), the links sit a little closer on desktop, and the name is the one thing that shrinks with "…" if space runs out. Measured user, admin and super admin at 1200–1920px with a short and a 30-letter name: Logout always fits. Phones/tablets unchanged.
