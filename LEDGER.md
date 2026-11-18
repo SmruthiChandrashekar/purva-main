@@ -18,7 +18,7 @@ Claim work here **before** editing, so the other person doesn't touch the same f
 
 | Who | Started | Repos | Files / area | What |
 |-----|---------|-------|--------------|------|
-| Smruthi | 2026-11-18 | main + esg | Lodge forms, GuestComplaintForm (esg), Chatbot, Layout (esg), backend/main.py (new /api/agents/check-complaint) | Complaint forms check for enough detail like the chat does; missing details are asked in the chatbot popup and added to the form. Chatbot for guests (esg). |
+| _(none)_ | | | | |
 
 ---
 
@@ -35,6 +35,13 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Deploy: what has to be redeployed (Vercel / Render / Supabase SQL), or "none"
 - Follow-up: anything left open (optional)
 ```
+
+### 2026-11-18 · Smruthi · Complaint forms check for enough detail, like the chat
+- Repos: main c944aaf · esg c97bf2f
+- What: On Submit, every complaint form now runs the same "is there enough detail (what, where, when)?" check as the chat, through the new `/api/agents/check-complaint`. If details are missing, the chatbot popup opens and asks; the answer is added to the form's description under "Additional details" and the person reviews and presses Submit. At most 2 questions; urgent reports (harassment, safety, bribery) are never held up; "Submit without these details" is always offered; if the check fails the form is filed as before. Complaints handed over from the chat skip it (already checked there). ESG only: the chatbot now shows for guests too (no saved history, voice or "Speak to a Human", which need a login), the guest form uses the same follow-ups, and the chatbot's form button sends guests to the guest form (`/login?mode=guest`).
+- Files: backend/main.py, backend/tests/test_form_detail_check.py (new), frontend/src/utils/formFollowup.js (new), frontend/src/components/FollowupNotice.jsx (new), Chatbot.jsx, LodgeExternal/LodgeInternal/LodgeContract.jsx; esg also GuestComplaintForm.jsx, Layout.jsx, Auth.jsx
+- Deploy: Render (both backends) and Vercel (both)
+- Follow-up: the popup flow was not tried in a browser before pushing; worth a quick check after deploy. Each form submit is one more Groq call.
 
 ### 2026-11-18 · Smruthi · Emails show the real portal link, not Brevo's tracking link
 - Repos: main 560b6f1 · esg 98ee708
@@ -122,6 +129,7 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 
 Move an item into **In progress** when you start on it.
 
+- The chat (`/api/agents/chat`) needs no login and files Medium/High complaints itself, with no owner and no hourly limit. Now that guests see the chatbot (ESG), this is easier to reach; consider applying the guest limit to chat filing.
 - Guest limit is per IP: people on the same office Wi-Fi share one complaint per hour, and the limit resets when the backend restarts (ESG).
 - A guest can enter someone else's email, and the "complaint received" email goes there (ESG).
 - Tracking by a 5-character ID prefix can be guessed.
