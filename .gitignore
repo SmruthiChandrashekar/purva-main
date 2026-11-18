@@ -87,3 +87,7 @@ experiments/adapters/
 # The policy vector index ships with the repo so cloud deploys can search it
 !rag/chroma_final/*.sqlite3
 !rag/chroma_final/**/*.bin
+
+# Azure deploy settings written by deploy/render-env.sh (real secrets): never commit
+.env.azure
+.env.azure.bak

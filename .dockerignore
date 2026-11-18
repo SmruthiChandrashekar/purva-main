@@ -1,0 +1,31 @@
+# Only the backend goes into the image. Start from "nothing", then allow what it needs.
+*
+
+!requirements.txt
+!backend/
+!agents/
+!rag/
+
+# Never in the image: git data, settings files with secrets, local data and DBs
+.git
+**/.git
+.env*
+**/.env*
+*.db
+*.sqlite
+*.sqlite3
+# ...except the prebuilt policy index, which the backend searches
+!rag/chroma_final/chroma.sqlite3
+*.log
+**/results/
+**/dataset/
+**/checkpoint-*/
+
+# Not needed at runtime
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+backend/tests/
+backend/database/*.sql
+backend/database/README.md
+**/.DS_Store
