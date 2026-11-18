@@ -44,9 +44,9 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 
 ### 2026-11-18 · Smruthi · Admin portal link in complaint emails
 - Repos: main a3158ff, ca4de3c · esg 01bf886, 44014c8
-- What: New-complaint and form-complaint alert emails to staff now include a link to the admin portal.
-- Files: backend/agent/nodes/department_router.py (and the form-complaint email code)
-- Deploy: Render (both backends)
+- What: The High-severity alert emails sent to staff when a complaint comes in now end with a link to the admin portal (`FRONTEND_URL` + `/admin/login`). There are two such emails: one for chatbot complaints (a3158ff / 01bf886) and one for form complaints (ca4de3c / 44014c8). If `FRONTEND_URL` is empty, the email keeps the old "Please log in" line with no link.
+- Files: backend/agent/nodes/department_router.py (chatbot complaints), agents/escalation/escalation_agent.py (form complaints)
+- Deploy: Render (both backends), with `FRONTEND_URL` set in each service's Environment
 
 ### 2026-11-18 · Teja · "File a complaint" goes straight to the user's own form
 - Repos: main 3530c0b · esg not needed (it has one form)
