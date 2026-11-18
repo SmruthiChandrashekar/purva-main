@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthProvider";
 
 import "./Chatbot.css";
 import { lodgeRouteFor } from "../utils/lodgeRoute";
+import { FOLLOWUP_ASK, FOLLOWUP_ANSWER } from "../utils/formFollowup";
 /**
  * Formats RAG text to convert asterisks to bullet points, 
  * handles bolding, and nicely formats the "Sources:" section.
@@ -56,6 +57,11 @@ const Chatbot = () => {
   
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  // A complaint form's follow-up question is waiting for an answer (utils/formFollowup.js).
+  // The next message goes back to the form instead of to the assistant, and isn't saved
+  // in the chat history.
+  const formQuestionRef = useRef(null);
+  const [formQuestionOpen, setFormQuestionOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [recordSecs, setRecordSecs] = useState(0);
   const [voiceError, setVoiceError] = useState('');
@@ -211,6 +217,22 @@ const Chatbot = () => {
     return () => window.removeEventListener('chatbot-open', handleChatbotOpen);
   }, []);
 
+  // A complaint form asks a follow-up question ({ question }) or just says something ({ message })
+  useEffect(() => {
+    const handleFormFollowup = (e) => {
+      const { question, message } = e.detail || {};
+      const text = question || message;
+      if (!text) return;
+      formQuestionRef.current = question || null;
+      setFormQuestionOpen(Boolean(question));
+      setMessages(prev => [...prev, { id: Date.now() + Math.random(), text, isBot: true, isFormFollowup: true }]);
+      setIsOpen(true);
+      setShowHint(false);
+    };
+    window.addEventListener(FOLLOWUP_ASK, handleFormFollowup);
+    return () => window.removeEventListener(FOLLOWUP_ASK, handleFormFollowup);
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
@@ -291,6 +313,17 @@ const Chatbot = () => {
   const handleSendMessage = async (text) => {
     const trimmed = (text || '').trim();
     if (!trimmed || isSendingRef.current || isTyping) return;
+
+    // Answer to a complaint form's follow-up question: hand it to the form, nothing else
+    if (formQuestionRef.current) {
+      const question = formQuestionRef.current;
+      formQuestionRef.current = null;
+      setFormQuestionOpen(false);
+      setInputValue("");
+      setMessages(prev => [...prev, { id: Date.now(), text: trimmed, isBot: false }]);
+      window.dispatchEvent(new CustomEvent(FOLLOWUP_ANSWER, { detail: { question, answer: trimmed } }));
+      return;
+    }
 
     // Immediately acquire lock and update UI synchronously
     isSendingRef.current = true;
@@ -806,7 +839,7 @@ const Chatbot = () => {
                   <input
                     type="text"
                     className="form-control rounded-pill me-2 border-0 shadow-none px-4 chat-input"
-                    placeholder={isTranscribing ? "Transcribing audio..." : (t('chatbotPlaceholder') || "Type a message...")}
+                    placeholder={isTranscribing ? "Transcribing audio..." : formQuestionOpen ? "Type your answer for the complaint form..." : (t('chatbotPlaceholder') || "Type a message...")}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
