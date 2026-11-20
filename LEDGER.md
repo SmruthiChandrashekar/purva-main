@@ -18,7 +18,7 @@ Claim work here **before** editing, so the other person doesn't touch the same f
 
 | Who | Started | Repos | Files / area | What |
 |-----|---------|-------|--------------|------|
-| Teja | 2026-11-20 | main + esg | backend/agent (graph, new safety gate, classify_severity, generate_response), backend/main.py (chat + complaint forms), Chatbot.jsx, PolicyAssistant.jsx | Chatbot safety guardrails, Phase 0–1 of CHATBOT_SAFETY_PLAN (harmful intent, crisis, off-topic, prompt injection) |
+| _(none)_ | | | | |
 
 ---
 
@@ -35,6 +35,19 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Deploy: what has to be redeployed (Vercel / Render / Supabase SQL), or "none"
 - Follow-up: anything left open (optional)
 ```
+
+### 2026-11-20 · Teja · Chatbot safety guardrails
+- Repos: main 841d1de · esg e89caa9
+- What: Every chat message and complaint-form text now passes a safety gate before triage (`backend/agent/safety.py`). Rules catch clear cases instantly: crisis wording, first-person harm such as "can i bomb my apartment", and injection phrases. Llama Prompt Guard 2 flags jailbreaks. gpt-oss-20b on Groq follows our written policy for subtle cases (off-topic, abuse, rephrased harm), with gpt-oss-safeguard-20b as backup. The safeguard model only allows 3 requests a minute on the free plan, and Llama Guard 4 is retired on Groq. Reports of harm by others ("my supervisor threatened to kill me") always reach triage as real complaints.
+  - Blocked messages get a fixed reply (crisis: 112 and Tele-MANAS 14416), no severity, no form and no signed pass. They're logged ("SAFETY GATE" in the backend log), and the chat shows a "Safety guardrail" badge.
+  - Triage now treats only reports by others as HIGH.
+  - User text is kept out of the system prompts.
+  - Policy answers end with "The official policy document is the final reference."
+  - On forms, harmful-intent text is capped at Medium for human review, never dropped.
+- Tests: 43 new safety tests. All 180 offline tests pass in main. Live check on a local backend: bomb → refused, threat report → HIGH/HR, crisis → helplines, injection → refused, IPL question → out of scope, POSH question → policy answer.
+- Files: backend/agent/safety.py (new), graph.py, state.py, nodes/classify_severity.py, nodes/generate_response.py, main.py, tests/test_safety_gate.py (new), tests/conftest.py, frontend SafetyBadge.jsx/.css (new), Chatbot.jsx, PolicyAssistant.jsx
+- Deploy: backend + website (Azure deploys on push). No new settings: it uses the existing GROQ_API_KEY. Optional: SAFETY_MODEL_ENABLED=false turns the AI checks off (rules stay).
+- Follow-up: phases 2–3 of CHATBOT_SAFETY_PLAN (answer grounding check, safety-event log table and review screen). The ESG tests test_turn_2_harassment_followup and test_turn_2_snag_followup already failed before this change (single-department mode).
 
 ### 2026-11-18 · Teja · Top-bar "Dashboard" link renamed to "Home"
 - Repos: main 884c44e · esg not needed (already says Home)
