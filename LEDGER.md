@@ -18,7 +18,7 @@ Claim work here **before** editing, so the other person doesn't touch the same f
 
 | Who | Started | Repos | Files / area | What |
 |-----|---------|-------|--------------|------|
-| _(none)_ | | | | |
+| Teja | 2026-11-20 | main + esg | backend/agent (graph, new safety gate, classify_severity, generate_response), backend/main.py (chat + complaint forms), Chatbot.jsx, PolicyAssistant.jsx | Chatbot safety guardrails, Phase 0–1 of CHATBOT_SAFETY_PLAN (harmful intent, crisis, off-topic, prompt injection) |
 
 ---
 
