@@ -36,6 +36,13 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Follow-up: anything left open (optional)
 ```
 
+### 2026-11-21 · Teja · Rolled back the chatbot safety guardrails
+- Repos: main 0a0cc75 · esg 279d0fb
+- What: Undid the 2026-11-20 safety guardrails change (main 841d1de, esg e89caa9) because the chat looked broken after it. The chatbot and complaint forms are back to how they were before that change.
+- Files: backend/agent/safety.py (removed), backend/agent/graph.py, backend/agent/state.py, backend/agent/nodes/classify_severity.py, backend/agent/nodes/generate_response.py, backend/main.py, frontend Chatbot.jsx, PolicyAssistant.jsx, SafetyBadge (removed)
+- Deploy: Azure backend and website redeploy automatically on push
+- Follow-up: the guardrails can be brought back later with `git revert 0a0cc75` once the problem is found
+
 ### 2026-11-20 · Teja · Chatbot safety guardrails
 - Repos: main 841d1de · esg e89caa9
 - What: Every chat message and complaint-form text now passes a safety gate before triage (`backend/agent/safety.py`). Rules catch clear cases instantly: crisis wording, first-person harm such as "can i bomb my apartment", and injection phrases. Llama Prompt Guard 2 flags jailbreaks. gpt-oss-20b on Groq follows our written policy for subtle cases (off-topic, abuse, rephrased harm), with gpt-oss-safeguard-20b as backup. The safeguard model only allows 3 requests a minute on the free plan, and Llama Guard 4 is retired on Groq. Reports of harm by others ("my supervisor threatened to kill me") always reach triage as real complaints.
