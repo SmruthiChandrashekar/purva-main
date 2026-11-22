@@ -34,6 +34,18 @@ ISSUER="https://token.actions.githubusercontent.com"
 AUDIENCE="api://AzureADTokenExchange"
 BRANCH="main"
 
+# Shared container registry (see deploy/SHARED-REGISTRY.md): once
+# deploy/azure-deploy.conf says ACR_NAME=<SHARED_ACR_NAME>, registry access is
+# managed by deploy/use-shared-registry.sh and this script leaves it alone.
+SHARED_ACR=""
+SR_CONF_FILE="$(cd "$(dirname "$0")" && pwd)/azure-deploy.conf"
+if [ -f "$SR_CONF_FILE" ]; then
+  sr_conf_acr="$(sed -n 's/^ACR_NAME=//p' "$SR_CONF_FILE" | tail -1 | tr -d '\r ')"
+  sr_shared_acr="$(sed -n 's/^SHARED_ACR_NAME=//p' "$SR_CONF_FILE" | tail -1 | tr -d '\r ')"
+  if [ -n "$sr_shared_acr" ] && [ "$sr_conf_acr" = "$sr_shared_acr" ]; then SHARED_ACR="$sr_shared_acr"; fi
+fi
+[ -z "$SHARED_ACR" ] || ACR_NAME="$SHARED_ACR"
+
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 say() { printf '\n==> %s\n' "$*"; }
 
@@ -67,8 +79,10 @@ TENANT_ID="$(az account show --query tenantId -o tsv)"
 
 [ "$(az group exists -n "$RESOURCE_GROUP")" = "true" ] || die "resource group $RESOURCE_GROUP not found. Run deploy/azure.sh first."
 RG_ID="$(az group show -n "$RESOURCE_GROUP" --query id -o tsv)"
-ACR_ID="$(az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" --query id -o tsv 2>/dev/null)" \
-  || die "registry $ACR_NAME not found in $RESOURCE_GROUP. Run deploy/azure.sh first."
+if [ -z "$SHARED_ACR" ]; then
+  ACR_ID="$(az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP" --query id -o tsv 2>/dev/null)" \
+    || die "registry $ACR_NAME not found in $RESOURCE_GROUP. Run deploy/azure.sh first."
+fi
 ENV_ID="$(az containerapp env show -n "$ENV_NAME" -g "$ENV_RESOURCE_GROUP" --query id -o tsv 2>/dev/null)" \
   || die "shared environment $ENV_NAME not found in $ENV_RESOURCE_GROUP"
 echo "Repo:        $REPO (branch $BRANCH, owner id $OWNER_ID, repo id $REPO_ID)"
@@ -162,7 +176,11 @@ fi
 
 say "Roles for $IDENTITY"
 grant "Contributor"     "$RG_ID"  "resource group $RESOURCE_GROUP"
-grant "AcrPush"         "$ACR_ID" "registry $ACR_NAME"
+if [ -z "$SHARED_ACR" ]; then
+  grant "AcrPush"         "$ACR_ID" "registry $ACR_NAME"
+else
+  echo "Push access to the shared registry $ACR_NAME: managed by deploy/use-shared-registry.sh"
+fi
 grant "$ENV_ROLE_NAME"  "$ENV_ID" "shared environment $ENV_NAME (join only)"
 
 say "Done. Send these four lines to the repo owner ($OWNER):"

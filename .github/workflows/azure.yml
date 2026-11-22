@@ -19,6 +19,7 @@ on:
       - "Dockerfile"
       - ".dockerignore"
       - ".github/workflows/azure.yml"
+      - "deploy/azure-deploy.conf"
   workflow_dispatch:
 
 permissions:
@@ -51,9 +52,18 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Pick the registry (deploy/azure-deploy.conf, else the AZURE_ACR variable)
+        env:
+          VAR_ACR: ${{ vars.AZURE_ACR }}
+        run: |
+          acr="$(sed -n 's/^ACR_NAME=//p' deploy/azure-deploy.conf 2>/dev/null | tail -1 | tr -d '\r ')"
+          [ -n "$acr" ] || acr="$VAR_ACR"
+          echo "$acr" | grep -Eq '^[a-z0-9]{5,50}$' || { echo "::error::bad registry name '$acr'"; exit 1; }
+          echo "ACR=$acr" >> "$GITHUB_ENV"
+          echo "Registry: $acr"
+
       - name: Build image
         env:
-          ACR: ${{ vars.AZURE_ACR }}
           SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           ATTEMPT: ${{ github.run_attempt }}
         run: |
@@ -62,8 +72,6 @@ jobs:
           docker build --platform linux/amd64 -t "$IMAGE" .
 
       - name: Push image
-        env:
-          ACR: ${{ vars.AZURE_ACR }}
         run: |
           az acr login --name "$ACR"
           docker push "$IMAGE"

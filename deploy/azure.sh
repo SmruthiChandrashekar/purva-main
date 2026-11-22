@@ -31,6 +31,18 @@ ENV_RESOURCE_GROUP="${ENV_RESOURCE_GROUP:-purva-bot}"
 ENV_FILE="${ENV_FILE:-.env.azure}"
 PLACEHOLDER_IMAGE="${PLACEHOLDER_IMAGE:-docker.io/nginxinc/nginx-unprivileged:alpine}"
 
+# Shared container registry (see deploy/SHARED-REGISTRY.md): once
+# deploy/azure-deploy.conf says ACR_NAME=<SHARED_ACR_NAME>, registry access is
+# managed by deploy/use-shared-registry.sh and this script leaves it alone.
+SHARED_ACR=""
+SR_CONF_FILE="$(cd "$(dirname "$0")" && pwd)/azure-deploy.conf"
+if [ -f "$SR_CONF_FILE" ]; then
+  sr_conf_acr="$(sed -n 's/^ACR_NAME=//p' "$SR_CONF_FILE" | tail -1 | tr -d '\r ')"
+  sr_shared_acr="$(sed -n 's/^SHARED_ACR_NAME=//p' "$SR_CONF_FILE" | tail -1 | tr -d '\r ')"
+  if [ -n "$sr_shared_acr" ] && [ "$sr_conf_acr" = "$sr_shared_acr" ]; then SHARED_ACR="$sr_shared_acr"; fi
+fi
+[ -z "$SHARED_ACR" ] || ACR_NAME="$SHARED_ACR"
+
 # Port: the app reads $PORT; the placeholder (nginx-unprivileged) listens on 8080 too.
 TARGET_PORT=8080
 
@@ -226,6 +238,9 @@ else
   run az group create -n "$RESOURCE_GROUP" -l "$LOCATION" --only-show-errors -o none
 fi
 
+if [ -n "$SHARED_ACR" ]; then
+  say "Container registry $ACR_NAME (shared by every project; managed by deploy/use-shared-registry.sh)"
+else
 say "Container registry $ACR_NAME (Basic)"
 if exists az acr show -n "$ACR_NAME" -g "$RESOURCE_GROUP"; then
   echo "exists"
@@ -234,6 +249,7 @@ else
   [ "$available" = "true" ] || die "registry name $ACR_NAME is taken outside this project. Rerun with ACR_NAME=<other name>."
   run az acr create -n "$ACR_NAME" -g "$RESOURCE_GROUP" -l "$LOCATION" --sku Basic \
     --admin-enabled false --only-show-errors -o none
+fi
 fi
 ACR_SERVER="$ACR_NAME.azurecr.io"
 
@@ -284,6 +300,9 @@ fi
 
 # Every run: the app's own identity, its pull access to this project's registry,
 # and the registry setting. (Also repairs a half-finished earlier run.)
+if [ -n "$SHARED_ACR" ]; then
+  say "Image pull access: shared registry $ACR_NAME (managed by deploy/use-shared-registry.sh)"
+else
 say "Image pull access: app identity -> registry $ACR_NAME"
 run az containerapp identity assign -n "$APP_NAME" -g "$RESOURCE_GROUP" --system-assigned \
   --only-show-errors -o none
@@ -309,6 +328,7 @@ else
 fi
 run az containerapp registry set -n "$APP_NAME" -g "$RESOURCE_GROUP" \
   --server "$ACR_SERVER" --identity system --only-show-errors -o none
+fi
 
 # Settings on an existing app: keep the image GitHub deployed, change only settings.
 if [ "$APP_EXISTED" = "1" ]; then
