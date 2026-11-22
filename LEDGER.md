@@ -36,6 +36,12 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Follow-up: anything left open (optional)
 ```
 
+### 2026-11-22 · RishabhWDB · Azure: backend can move to the shared container registry
+- Repos: main 7bd217c (main only)
+- What: Every project in the Azure subscription will keep its images in one shared registry (purvashared82aaf9d4) instead of one each, to save about US$35 a month. The backend deploy workflow now reads the registry name from the new deploy/azure-deploy.conf (falling back to the AZURE_ACR variable), so the move needs no Actions variable change. Nothing changes until the move is run: the file still names purvamain82aaf9d4.
+- Files: deploy/azure-deploy.conf, deploy/shared-registry*.sh, deploy/use-shared-registry.sh, deploy/SHARED-REGISTRY.md, deploy/azure.sh, deploy/github-setup.sh, .github/workflows/azure.yml
+- Deploy: none now. Later, in Cloud Shell: deploy/shared-registry-setup.sh (once for all projects), then deploy/use-shared-registry.sh and its git push, which redeploys the backend from the shared registry. Steps in deploy/SHARED-REGISTRY.md.
+
 ### 2026-11-21 · Teja · Rolled back the chatbot safety guardrails
 - Repos: main 0a0cc75 · esg 279d0fb
 - What: Undid the 2026-11-20 safety guardrails change (main 841d1de, esg e89caa9) because the chat looked broken after it. The chatbot and complaint forms are back to how they were before that change.
