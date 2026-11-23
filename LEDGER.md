@@ -36,6 +36,13 @@ Newest first. One entry per finished change (a fix in both repos is one entry).
 - Follow-up: anything left open (optional)
 ```
 
+### 2026-11-23 · RishabhWDB · Azure: deploys now come from RishabhWDB/purva-platform
+- Repos: main 350dc17 (main only)
+- What: The backend workflow now only builds the image and uploads it to the shared registry; a separate repo, RishabhWDB/purva-platform, deploys it (usually within 5-15 minutes) and holds the app's size and settings. The Owner-only setup scripts in deploy/ were removed (still in git history), deploy/azure-deploy.conf was trimmed to what the workflows read, and deploy/AZURE.md now explains the new flow. No app code changed. The website workflow is unchanged apart from its header comment.
+- Files: .github/workflows/azure.yml, .github/workflows/azure-frontend.yml, deploy/AZURE.md, deploy/azure-deploy.conf; removed deploy/azure.sh, github-setup.sh, azure-frontend.sh, render-env.sh, vercel-env.sh, shared-registry*.sh, use-shared-registry.sh, SHARED-REGISTRY.md, AZURE-WEBSITE.md
+- Deploy: none (pushed with [skip ci]). The next backend push goes live through purva-platform.
+- Follow-up: to change env vars, secrets or the app's size, ask the platform owner.
+
 ### 2026-11-22 · RishabhWDB · Azure: backend can move to the shared container registry
 - Repos: main 7bd217c (main only)
 - What: Every project in the Azure subscription will keep its images in one shared registry (purvashared82aaf9d4) instead of one each, to save about US$35 a month. The backend deploy workflow now reads the registry name from the new deploy/azure-deploy.conf (falling back to the AZURE_ACR variable), so the move needs no Actions variable change. Nothing changes until the move is run: the file still names purvamain82aaf9d4.
