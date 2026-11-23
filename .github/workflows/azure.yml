@@ -1,10 +1,10 @@
-# Deploys the backend to Azure Container Apps on every push to main that changes it.
-# The repo has no CI workflow, so this runs on push (if one is added later, switch the
-# trigger to `workflow_run` of that workflow; the checkout below already handles it).
+# Builds this app's image and uploads it to its repository in the shared Azure
+# registry (purvashared82aaf9d4.azurecr.io/purva-main). It does NOT deploy:
+# RishabhWDB/purva-platform does, usually within 5-15 minutes, and holds the
+# app's settings. This repo's Azure identity can only upload images.
 #
-# Login is OIDC with a managed identity: no secrets. It stays switched off until the
-# repo owner sets the AZURE_* variables printed by deploy/github-setup.sh.
-# This only swaps the image; settings are changed with deploy/azure.sh or the portal.
+# Sign-in uses this repo's AZURE_* Actions variables; the registry comes from
+# deploy/azure-deploy.conf.
 name: Deploy to Azure
 
 on:
@@ -76,33 +76,12 @@ jobs:
           az acr login --name "$ACR"
           docker push "$IMAGE"
 
-      - name: Deploy new image
+      - name: Hand over to purva-platform (it deploys the image)
+        env:
+          UPLOADED: ${{ env.IMAGE }}
         run: |
-          az containerapp update \
-            --name "$APP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --image "$IMAGE" \
-            --only-show-errors -o none
-
-      - name: Wait for /health (up to 5 minutes)
-        run: |
-          fqdn="$(az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" \
-            --query properties.configuration.ingress.fqdn -o tsv)"
-          url="https://$fqdn/health"
-          deadline=$((SECONDS + 300))
-          while [ "$SECONDS" -lt "$deadline" ]; do
-            # The new revision must be the ready one, so an old copy answering doesn't count
-            revs="$(az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" \
-              --query "[properties.latestRevisionName, properties.latestReadyRevisionName]" -o tsv | tr '\n' ' ' || true)"
-            read -r latest ready <<< "$revs" || true
-            if [ -n "$latest" ] && [ "$latest" = "$ready" ] && reply="$(curl -fsS --max-time 10 "$url")"; then
-              echo "Healthy: $reply"
-              echo "Deployed $IMAGE to https://$fqdn" >> "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-            echo "Waiting (latest=$latest ready=$ready)..."
-            sleep 10
-          done
-          echo "::error::$url did not answer within 5 minutes"
-          az containerapp logs show -n "$APP_NAME" -g "$RESOURCE_GROUP" --tail 50 || true
-          exit 1
+          echo "::notice::Uploaded $UPLOADED. RishabhWDB/purva-platform deploys it, usually within 5-15 minutes."
+          {
+            echo "### Uploaded \`$UPLOADED\`"
+            echo "Goes live within about 5-15 minutes: https://github.com/RishabhWDB/purva-platform/actions"
+          } >> "$GITHUB_STEP_SUMMARY"

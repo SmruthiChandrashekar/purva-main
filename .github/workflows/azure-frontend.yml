@@ -1,11 +1,7 @@
-# Builds the website (frontend/) and publishes it to Azure Static Web Apps on every push to
-# main that changes it. Same no-secrets login as the backend deploy (azure.yml): OIDC with
-# the purva-main-github identity. The Static Web App's upload token is fetched at deploy
-# time with that login and never stored.
-#
-# Stays switched off until the repo owner sets AZURE_STATIC_WEB_APP (printed by
-# deploy/azure-frontend.sh) plus the VITE_* variables (printed by deploy/vercel-env.sh).
-# See deploy/AZURE-WEBSITE.md.
+# Website: builds frontend/ and publishes it to the Azure Static Web App
+# `purva-main-web`. Signs in with OIDC as the purva-main-github identity, which may only read
+# that Static Web App's upload token (fetched at run time, never stored).
+# Settings: this repo's AZURE_STATIC_WEB_APP and VITE_* Actions variables.
 name: Deploy website to Azure
 
 on:
